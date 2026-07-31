@@ -13,6 +13,16 @@ class BalanceEngineServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        //
+        if (! $this->app->runningInConsole()) {
+            return;
+        }
+
+        $this->publishes([
+            __DIR__.'/../config/balance.php' => config_path('balance.php'),
+        ], 'balance-config');
+
+        $this->publishesMigrations([
+            __DIR__.'/../database/migrations' => database_path('migrations'),
+        ], 'balance-migrations');
     }
 }
