@@ -3,6 +3,8 @@
 namespace Bityukov\BalanceEngine;
 
 use Bityukov\BalanceEngine\Enums\TransactionType;
+use Bityukov\BalanceEngine\Events\AccountWasFrozen;
+use Bityukov\BalanceEngine\Events\AccountWasUnfrozen;
 use Bityukov\BalanceEngine\Events\Deposited;
 use Bityukov\BalanceEngine\Events\ReservationCaptured;
 use Bityukov\BalanceEngine\Events\ReservationReleased;
@@ -180,6 +182,43 @@ class BalanceManager
         );
 
         return new Reservation($transaction);
+    }
+
+    /**
+     * Freezing blocks debits only — credits keep landing. For AML and fraud work
+     * that is the correct semantics: stop payouts, but do not lose money that is
+     * already in flight.
+     *
+     * No transaction or lock here: this is a single UPDATE of one row, with no
+     * read-modify-write of a monetary value. The event implements
+     * ShouldDispatchAfterCommit and so dispatches immediately outside one.
+     */
+    public function freeze(Model $account, ?string $reason = null): Account
+    {
+        $resolved = $this->resolver->resolve($account);
+
+        $resolved->forceFill([
+            'frozen_at' => now(),
+            'frozen_reason' => $reason,
+        ])->save();
+
+        event(new AccountWasFrozen($resolved, $reason));
+
+        return $resolved;
+    }
+
+    public function unfreeze(Model $account): Account
+    {
+        $resolved = $this->resolver->resolve($account);
+
+        $resolved->forceFill([
+            'frozen_at' => null,
+            'frozen_reason' => null,
+        ])->save();
+
+        event(new AccountWasUnfrozen($resolved));
+
+        return $resolved;
     }
 
     /**

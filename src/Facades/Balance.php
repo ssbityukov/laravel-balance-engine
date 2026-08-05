@@ -4,6 +4,7 @@ namespace Bityukov\BalanceEngine\Facades;
 
 use Bityukov\BalanceEngine\BalanceManager;
 use Bityukov\BalanceEngine\Ledger\Reservation;
+use Bityukov\BalanceEngine\Models\Account;
 use Bityukov\BalanceEngine\Models\Transaction;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Facade;
  * @method static Transaction capture(Reservation $reservation, Model $to, ?int $amount = null)
  * @method static Transaction release(Reservation $reservation, ?int $amount = null)
  * @method static Transaction reverse(Transaction $transaction, ?array $meta = null)
+ * @method static Account freeze(Model $account, ?string $reason = null)
+ * @method static Account unfreeze(Model $account)
  *
  * @see BalanceManager
  */
