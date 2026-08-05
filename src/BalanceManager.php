@@ -10,6 +10,7 @@ use Bityukov\BalanceEngine\Exceptions\CannotTransferToSelf;
 use Bityukov\BalanceEngine\Exceptions\CurrencyMismatch;
 use Bityukov\BalanceEngine\Exceptions\InvalidAmount;
 use Bityukov\BalanceEngine\Ledger\AccountLocker;
+use Bityukov\BalanceEngine\Ledger\IdempotencyGuard;
 use Bityukov\BalanceEngine\Ledger\Line;
 use Bityukov\BalanceEngine\Ledger\TransactionWriter;
 use Bityukov\BalanceEngine\Models\Account;
@@ -19,6 +20,7 @@ use Bityukov\BalanceEngine\Support\Fingerprint;
 use Bityukov\BalanceEngine\Support\SystemAccounts;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 class BalanceManager
@@ -28,6 +30,7 @@ class BalanceManager
         protected AccountLocker $locker,
         protected TransactionWriter $writer,
         protected SystemAccounts $system,
+        protected IdempotencyGuard $idempotency,
     ) {}
 
     /**
@@ -150,33 +153,41 @@ class BalanceManager
         ?string $idempotencyKey,
         Closure $event,
     ): Transaction {
-        return $this->perform(function () use ($type, $debit, $credit, $amount, $reference, $meta, $idempotencyKey, $event) {
-            $locked = $this->locker->lock([$debit->getKey(), $credit->getKey()]);
+        // Computed before the transaction opens so perform() can compare it
+        // against a stored one without doing any of the work first.
+        $fingerprint = Fingerprint::make(
+            $type,
+            [$debit->getKey(), $credit->getKey()],
+            $amount,
+            $debit->currency,
+        );
 
-            $from = $locked[$debit->getKey()];
-            $to = $locked[$credit->getKey()];
+        return $this->perform(
+            callback: function () use ($type, $debit, $credit, $amount, $reference, $meta, $idempotencyKey, $fingerprint, $event) {
+                $locked = $this->locker->lock([$debit->getKey(), $credit->getKey()]);
 
-            $transaction = $this->writer->write(
-                type: $type,
-                lines: [
-                    new Line($from, -$amount),
-                    new Line($to, $amount),
-                ],
-                reference: $reference,
-                meta: $meta,
-                idempotencyKey: $idempotencyKey,
-                idempotencyFingerprint: Fingerprint::make(
-                    $type,
-                    [$debit->getKey(), $credit->getKey()],
-                    $amount,
-                    $from->currency,
-                ),
-            );
+                $from = $locked[$debit->getKey()];
+                $to = $locked[$credit->getKey()];
 
-            event($event($transaction, $from, $to));
+                $transaction = $this->writer->write(
+                    type: $type,
+                    lines: [
+                        new Line($from, -$amount),
+                        new Line($to, $amount),
+                    ],
+                    reference: $reference,
+                    meta: $meta,
+                    idempotencyKey: $idempotencyKey,
+                    idempotencyFingerprint: $fingerprint,
+                );
 
-            return $transaction;
-        });
+                event($event($transaction, $from, $to));
+
+                return $transaction;
+            },
+            idempotencyKey: $idempotencyKey,
+            fingerprint: $fingerprint,
+        );
     }
 
     protected function assertPositive(int $amount): void
@@ -189,9 +200,29 @@ class BalanceManager
     /**
      * Run one money operation. Deadlock retries only take effect when the caller
      * has not wrapped this in an outer transaction of its own.
+     *
+     * The replay check happens twice on purpose: once before opening the
+     * transaction, which covers the ordinary repeated call, and once after a
+     * unique-index violation, which covers two concurrent workers racing on the
+     * same key. Only the index can settle that race, so the second check is not
+     * redundant.
      */
-    protected function perform(Closure $callback): Transaction
+    protected function perform(Closure $callback, ?string $idempotencyKey = null, ?string $fingerprint = null): Transaction
     {
-        return DB::transaction($callback, config('balance.transaction_attempts'));
+        if ($idempotencyKey !== null && $fingerprint !== null) {
+            if ($replayed = $this->idempotency->replay($idempotencyKey, $fingerprint)) {
+                return $replayed;
+            }
+        }
+
+        try {
+            return DB::transaction($callback, config('balance.transaction_attempts'));
+        } catch (UniqueConstraintViolationException $e) {
+            if ($idempotencyKey === null || $fingerprint === null) {
+                throw $e;
+            }
+
+            return $this->idempotency->replayOrFail($idempotencyKey, $fingerprint);
+        }
     }
 }
