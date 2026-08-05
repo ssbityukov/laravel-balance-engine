@@ -6,18 +6,20 @@ on:
   pull_request:
 
 jobs:
+  # 8.4 is the floor because pest 5 requires it, not because the package does.
+  # Laravel 13 itself runs on 8.3, but support that cannot be tested is not
+  # support, so the constraint in composer.json matches what runs here.
   unit:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.3', '8.4', '8.5']
-        laravel: ['12.*', '13.*']
+        php: ['8.4', '8.5']
 
-    name: PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }} / sqlite
+    name: PHP ${{ matrix.php }} / sqlite
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -25,10 +27,7 @@ jobs:
           extensions: pdo, sqlite3, pcntl
           coverage: none
 
-      - name: Install dependencies
-        run: |
-          composer require "illuminate/support:${{ matrix.laravel }}" --no-interaction --no-update
-          composer update --prefer-dist --no-interaction --no-progress
+      - run: composer update --prefer-dist --no-interaction --no-progress
 
       - run: vendor/bin/pest --testsuite=Unit,Feature
 
@@ -59,11 +58,11 @@ jobs:
       DB_PASSWORD: ''
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.5'
           extensions: pdo, pdo_mysql, pcntl
           coverage: none
 
@@ -98,11 +97,11 @@ jobs:
       DB_PASSWORD: secret
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.5'
           extensions: pdo, pdo_pgsql, pcntl
           coverage: none
 
@@ -174,11 +173,11 @@ jobs:
       BALANCE_OWNER_KEY_TYPE: ${{ matrix.key_type }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.5'
           extensions: pdo, pdo_mysql, pdo_pgsql, pcntl
           coverage: none
 
