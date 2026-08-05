@@ -11,6 +11,16 @@
         "accounting"
     ],
     "license": "MIT",
+    "authors": [
+        {
+            "name": "Sergey Bityukov",
+            "email": "s.s.bityukov@gmail.com"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/ssbityukov/laravel-balance-engine/issues",
+        "source": "https://github.com/ssbityukov/laravel-balance-engine"
+    },
     "require": {
         "php": "^8.3",
         "illuminate/console": "^12.0|^13.0",
