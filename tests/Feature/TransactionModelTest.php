@@ -4,7 +4,7 @@ use Bityukov\BalanceEngine\Enums\TransactionType;
 use Bityukov\BalanceEngine\Models\Account;
 use Bityukov\BalanceEngine\Models\Entry;
 use Bityukov\BalanceEngine\Models\Transaction;
-use Bityukov\BalanceEngine\Tests\Fixtures\User;
+use Bityukov\BalanceEngine\Tests\Fixtures\Order;
 use Illuminate\Support\Carbon;
 
 it('assigns a uuid on creation', function () {
@@ -81,7 +81,7 @@ it('links a reversal to the transaction it reverses', function () {
 });
 
 it('stores a polymorphic reference', function () {
-    $user = User::create();
+    $user = Order::create();
 
     $transaction = Transaction::create([
         'type' => TransactionType::Deposit,

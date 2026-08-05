@@ -11,6 +11,7 @@ use Bityukov\BalanceEngine\Facades\Balance;
 use Bityukov\BalanceEngine\Models\Entry;
 use Bityukov\BalanceEngine\Models\Transaction;
 use Bityukov\BalanceEngine\Support\SystemAccounts;
+use Bityukov\BalanceEngine\Tests\Fixtures\Order;
 use Bityukov\BalanceEngine\Tests\Fixtures\User;
 use Illuminate\Support\Facades\Event;
 
@@ -75,7 +76,7 @@ it('derives remaining independently for two reservations sharing a hold account'
 });
 
 it('stores the expiry, reference and meta', function () {
-    $order = User::create();
+    $order = Order::create();
     $expiry = now()->addMinutes(15);
 
     $reservation = Balance::reserve(

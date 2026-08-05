@@ -11,7 +11,7 @@ use Bityukov\BalanceEngine\Ledger\Line;
 use Bityukov\BalanceEngine\Ledger\TransactionWriter;
 use Bityukov\BalanceEngine\Models\Account;
 use Bityukov\BalanceEngine\Models\Entry;
-use Bityukov\BalanceEngine\Tests\Fixtures\User;
+use Bityukov\BalanceEngine\Tests\Fixtures\Order;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
@@ -151,7 +151,7 @@ it('keeps the global sum of entries at zero', function () {
 });
 
 it('stores reference, meta and idempotency data', function () {
-    $user = User::create();
+    $user = Order::create();
 
     $transaction = writeInTransaction(fn () => $this->writer->write(
         type: TransactionType::Transfer,

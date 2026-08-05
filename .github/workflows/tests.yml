@@ -110,12 +110,18 @@ jobs:
 
       - run: vendor/bin/pest
 
+  # PostgreSQL is in this matrix on purpose. It is the only driver that rejects
+  # a mismatched owner key rather than coercing it: a native uuid column will
+  # not take "1", and char(26) blank-pads a short value so it no longer equals
+  # what was written. MySQL accepts both silently, so a MySQL-only matrix here
+  # proves much less than it appears to.
   owner-keys:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         key_type: [int, uuid, ulid, string]
+        driver: [mysql, pgsql]
 
     services:
       mysql:
@@ -130,15 +136,27 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
-    name: owner_key_type=${{ matrix.key_type }}
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: balance_engine_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd=pg_isready
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    name: owner_key_type=${{ matrix.key_type }} / ${{ matrix.driver }}
 
     env:
-      DB_CONNECTION: mysql
+      DB_CONNECTION: ${{ matrix.driver }}
       DB_HOST: 127.0.0.1
-      DB_PORT: 3306
+      DB_PORT: ${{ matrix.driver == 'mysql' && '3306' || '5432' }}
       DB_DATABASE: balance_engine_test
-      DB_USERNAME: root
-      DB_PASSWORD: ''
+      DB_USERNAME: ${{ matrix.driver == 'mysql' && 'root' || 'postgres' }}
+      DB_PASSWORD: ${{ matrix.driver == 'mysql' && '' || 'secret' }}
       BALANCE_OWNER_KEY_TYPE: ${{ matrix.key_type }}
 
     steps:
@@ -147,7 +165,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo, pdo_mysql, pcntl
+          extensions: pdo, pdo_mysql, pdo_pgsql, pcntl
           coverage: none
 
       - run: composer update --prefer-dist --no-interaction --no-progress

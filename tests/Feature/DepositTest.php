@@ -6,6 +6,7 @@ use Bityukov\BalanceEngine\Exceptions\InvalidAmount;
 use Bityukov\BalanceEngine\Facades\Balance;
 use Bityukov\BalanceEngine\Models\Entry;
 use Bityukov\BalanceEngine\Support\SystemAccounts;
+use Bityukov\BalanceEngine\Tests\Fixtures\Order;
 use Bityukov\BalanceEngine\Tests\Fixtures\User;
 use Illuminate\Support\Facades\Event;
 
@@ -57,7 +58,7 @@ it('rejects a zero or negative amount', function (int $amount) {
 })->with([0, -1, -500]);
 
 it('stores reference and meta', function () {
-    $order = User::create();
+    $order = Order::create();
 
     $transaction = Balance::deposit(
         to: $this->user,

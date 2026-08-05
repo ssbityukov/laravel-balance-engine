@@ -1,6 +1,7 @@
 <?php
 
 use Bityukov\BalanceEngine\Console\InstallCommand;
+use Bityukov\BalanceEngine\Tests\Fixtures\Order;
 use Bityukov\BalanceEngine\Tests\Fixtures\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -8,7 +9,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\File;
 
 it('detects an integer key model', function () {
-    expect(app(InstallCommand::class)->detectOwnerKeyType(User::class))->toBe('int');
+    // Order, not User: the User fixture's key type follows
+    // balance.owner_key_type so that the suite can run under each of them,
+    // which would make this assertion depend on how the suite was invoked.
+    expect(app(InstallCommand::class)->detectOwnerKeyType(Order::class))->toBe('int');
 });
 
 it('detects a uuid key model', function () {
@@ -57,8 +61,10 @@ it('writes the detected key type into the published config', function () {
 
     $this->artisan('balance:install')->assertExitCode(0);
 
+    $detected = app(InstallCommand::class)->detectOwnerKeyType(User::class);
+
     expect(File::get(config_path('balance.php')))
-        ->toContain("'owner_key_type' => 'int'");
+        ->toContain("'owner_key_type' => '{$detected}'");
 });
 
 it('publishes migrations', function () {
@@ -72,8 +78,10 @@ it('explains what it detected and why', function () {
     // One expectation, not two. Each expectsOutputToContain is matched against a
     // single write and the first matching one wins, so two substrings that share
     // an output line can never both be satisfied.
+    $detected = app(InstallCommand::class)->detectOwnerKeyType(User::class);
+
     $this->artisan('balance:install')
-        ->expectsOutputToContain('Detected owner key type [int] from ['.User::class.']')
+        ->expectsOutputToContain("Detected owner key type [{$detected}] from [".User::class.']')
         ->assertExitCode(0);
 });
 

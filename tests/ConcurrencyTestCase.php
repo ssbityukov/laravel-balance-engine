@@ -3,7 +3,6 @@
 namespace Bityukov\BalanceEngine\Tests;
 
 use Closure;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -34,16 +33,12 @@ abstract class ConcurrencyTestCase extends TestCase
     {
         $this->artisan('migrate:fresh', ['--database' => config('database.default')]);
 
-        DB::connection()->getSchemaBuilder()->dropIfExists('users');
-
-        DB::connection()->getSchemaBuilder()->create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name')->default('test');
-            $table->timestamps();
-        });
-
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         $this->artisan('migrate', ['--database' => config('database.default')]);
+
+        // Same fixtures as the rest of the suite, so the owner key type is
+        // honoured here too rather than hardcoded to an integer.
+        $this->createFixtureTables();
     }
 
     /**
