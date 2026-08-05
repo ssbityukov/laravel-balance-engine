@@ -2,6 +2,7 @@
 
 namespace Bityukov\BalanceEngine;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
 class BalanceEngineServiceProvider extends ServiceProvider
@@ -13,6 +14,8 @@ class BalanceEngineServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->warnAboutMissingRowLocks();
+
         if (! $this->app->runningInConsole()) {
             return;
         }
@@ -24,5 +27,33 @@ class BalanceEngineServiceProvider extends ServiceProvider
         $this->publishesMigrations([
             __DIR__.'/../database/migrations' => database_path('migrations'),
         ], 'balance-migrations');
+    }
+
+    /**
+     * SQLite has no row-level locking: lockForUpdate() is a no-op there, so the
+     * package cannot protect against concurrent writes. Fine for tests, unsafe
+     * in production.
+     *
+     * The driver is read from config rather than through
+     * DB::connection()->getDriverName() so that booting the application does
+     * not open a database connection.
+     */
+    protected function warnAboutMissingRowLocks(): void
+    {
+        if (! $this->app->environment('production')) {
+            return;
+        }
+
+        $connection = config('database.default');
+
+        if (config("database.connections.{$connection}.driver") !== 'sqlite') {
+            return;
+        }
+
+        Log::warning(
+            '[balance-engine] SQLite does not support row locks. '
+            .'Concurrent balance operations are NOT safe on this driver. '
+            .'Use MySQL or PostgreSQL in production.'
+        );
     }
 }
