@@ -10,6 +10,9 @@ class BalanceEngineServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/balance.php', 'balance');
+
+        $this->app->singleton(BalanceManager::class);
+        $this->app->alias(BalanceManager::class, 'balance');
     }
 
     public function boot(): void
