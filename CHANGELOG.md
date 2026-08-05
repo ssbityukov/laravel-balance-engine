@@ -4,7 +4,7 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres
 to [Semantic Versioning](https://semver.org/).
 
-## v1.0.0 - unreleased
+## v1.0.0 - 2026-08-05
 
 Initial release.
 
