@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static Reservation reserve(Model $from, int $amount, ?string $currency = null, ?DateTimeInterface $expiresAt = null, ?Model $reference = null, ?array $meta = null, ?string $idempotencyKey = null)
  * @method static Transaction capture(Reservation $reservation, Model $to, ?int $amount = null)
  * @method static Transaction release(Reservation $reservation, ?int $amount = null)
+ * @method static Transaction reverse(Transaction $transaction, ?array $meta = null)
  *
  * @see BalanceManager
  */

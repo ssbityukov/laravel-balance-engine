@@ -7,6 +7,7 @@ use Bityukov\BalanceEngine\Events\Deposited;
 use Bityukov\BalanceEngine\Events\ReservationCaptured;
 use Bityukov\BalanceEngine\Events\ReservationReleased;
 use Bityukov\BalanceEngine\Events\Reserved;
+use Bityukov\BalanceEngine\Events\TransactionReversed;
 use Bityukov\BalanceEngine\Events\Transferred;
 use Bityukov\BalanceEngine\Events\Withdrawn;
 use Bityukov\BalanceEngine\Exceptions\CannotTransferToSelf;
@@ -15,6 +16,8 @@ use Bityukov\BalanceEngine\Exceptions\InvalidAmount;
 use Bityukov\BalanceEngine\Exceptions\ReservationAmountExceeded;
 use Bityukov\BalanceEngine\Exceptions\ReservationClosed;
 use Bityukov\BalanceEngine\Exceptions\ReservationExpired;
+use Bityukov\BalanceEngine\Exceptions\TransactionAlreadyReversed;
+use Bityukov\BalanceEngine\Exceptions\TransactionNotReversible;
 use Bityukov\BalanceEngine\Ledger\AccountLocker;
 use Bityukov\BalanceEngine\Ledger\IdempotencyGuard;
 use Bityukov\BalanceEngine\Ledger\Line;
@@ -177,6 +180,57 @@ class BalanceManager
         );
 
         return new Reservation($transaction);
+    }
+
+    /**
+     * Undo a transaction by mirroring it, never by deleting anything.
+     *
+     * A reversal is an ordinary ledger operation and obeys the ordinary rules,
+     * so reversing a deposit whose money has since been spent fails with
+     * InsufficientFunds. That is the intended outcome: the alternative is
+     * pushing an account into a negative balance it never agreed to.
+     *
+     * @param  array<string, mixed>|null  $meta
+     */
+    public function reverse(Transaction $transaction, ?array $meta = null): Transaction
+    {
+        if (! $transaction->type->isReversible()) {
+            throw TransactionNotReversible::for($transaction);
+        }
+
+        if ($transaction->reversal()->exists()) {
+            throw TransactionAlreadyReversed::for($transaction);
+        }
+
+        $entries = $transaction->entries()->get();
+
+        return $this->perform(function () use ($transaction, $entries, $meta) {
+            $accounts = $this->locker->lock($entries->pluck('account_id')->all());
+
+            $lines = $entries
+                ->map(fn ($entry) => new Line($accounts[$entry->account_id], -$entry->amount))
+                ->all();
+
+            try {
+                $reversal = $this->writer->write(
+                    type: TransactionType::Reversal,
+                    lines: $lines,
+                    reference: $transaction->reference,
+                    meta: $meta,
+                    reverses: $transaction,
+                );
+            } catch (UniqueConstraintViolationException) {
+                // Another worker reversed it between the exists() check above
+                // and this insert. The unique index on reverses_id is what
+                // actually prevents a double reversal; the check only saves the
+                // work in the common case.
+                throw TransactionAlreadyReversed::for($transaction);
+            }
+
+            event(new TransactionReversed($transaction, $reversal));
+
+            return $reversal;
+        });
     }
 
     /**
