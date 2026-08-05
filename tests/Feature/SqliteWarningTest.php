@@ -5,10 +5,20 @@ namespace Bityukov\BalanceEngine\Tests\Feature;
 use Bityukov\BalanceEngine\BalanceEngineServiceProvider;
 use Bityukov\BalanceEngine\Tests\TestCase;
 use Closure;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class SqliteWarningTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            $this->markTestSkipped('This test is about the sqlite driver specifically.');
+        }
+    }
+
     public function test_it_warns_when_running_on_sqlite_in_production(): void
     {
         Log::shouldReceive('warning')

@@ -4,6 +4,7 @@ namespace Bityukov\BalanceEngine\Tests;
 
 use Bityukov\BalanceEngine\BalanceEngineServiceProvider;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Env;
 use Illuminate\Support\Facades\DB;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -33,15 +34,36 @@ abstract class TestCase extends Orchestra
         return [BalanceEngineServiceProvider::class];
     }
 
+    /**
+     * DB_CONNECTION is honoured rather than hardcoded so the concurrency suite
+     * can be pointed at MySQL or PostgreSQL. It defaults to Testbench's
+     * in-memory sqlite, which is what the rest of the suite runs on.
+     */
     protected function defineEnvironment($app): void
     {
-        $app['config']->set('database.default', 'testing');
+        // Env::get rather than the env() helper: the helper is flagged outside
+        // the config directory because it returns null once config is cached,
+        // which cannot happen while bootstrapping a test.
+        $connection = Env::get('DB_CONNECTION', 'testing');
+
+        $app['config']->set('database.default', $connection);
+
+        if ($connection !== 'testing') {
+            $app['config']->set("database.connections.{$connection}.database", Env::get('DB_DATABASE', 'balance_engine_test'));
+            $app['config']->set("database.connections.{$connection}.username", Env::get('DB_USERNAME', 'root'));
+            $app['config']->set("database.connections.{$connection}.password", Env::get('DB_PASSWORD', ''));
+        }
+
         $app['config']->set('auth.providers.users.model', Fixtures\User::class);
     }
 
     protected function defineDatabaseMigrations(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+
+        // Dropped first because a real database persists between tests, unlike
+        // the in-memory sqlite the suite runs on by default.
+        $this->app['db']->connection()->getSchemaBuilder()->dropIfExists('users');
 
         $this->app['db']->connection()->getSchemaBuilder()->create('users', function (Blueprint $table) {
             $table->id();

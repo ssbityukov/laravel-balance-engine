@@ -12,9 +12,14 @@ return new class extends Migration
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
             OwnerKey::morphs($table, 'owner');
-            $table->string('code')->nullable();
-            $table->string('name')->default('main');
-            $table->string('purpose')->default('available');
+            $table->string('code', 64)->nullable();
+            // Lengths are deliberate, not stylistic. These three columns sit in
+            // the composite unique index below, and at the default 255 with
+            // utf8mb4 that index is 3244 bytes — past MySQL's 3072 limit, so
+            // the migration simply fails to run. Found by the concurrency suite,
+            // which is the first thing in this package to touch real MySQL.
+            $table->string('name', 64)->default('main');
+            $table->string('purpose', 32)->default('available');
             $table->string('currency', 10);
             $table->bigInteger('balance')->default(0);
             $table->boolean('allows_negative')->default(false);

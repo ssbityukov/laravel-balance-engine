@@ -20,7 +20,11 @@ beforeEach(function () {
 function accountLockQueries(array &$sink): void
 {
     DB::listen(function ($query) use (&$sink) {
-        if (str_starts_with($query->sql, 'select * from "balance_accounts" where')
+        // Matched by shape rather than by exact SQL: identifier quoting differs
+        // per driver (sqlite uses "x", MySQL uses `x`) and only MySQL and
+        // Postgres append "for update" at all.
+        if (str_starts_with($query->sql, 'select')
+            && str_contains($query->sql, 'balance_accounts')
             && count($query->bindings) === 1) {
             $sink[] = (int) $query->bindings[0];
         }
