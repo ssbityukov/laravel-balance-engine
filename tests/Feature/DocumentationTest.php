@@ -78,6 +78,22 @@ it('runs the cancelled order recipe', function () {
         ->and($reservation->status())->toBe(ReservationStatus::Released);
 });
 
+it('runs the marketplace recipe across two requests', function () {
+    $buyer = User::create(['name' => 'buyer']);
+    $seller = User::create(['name' => 'seller']);
+
+    Balance::deposit(to: $buyer, amount: 10_000);
+
+    // Checkout request: store the uuid on your order.
+    $uuid = Balance::reserve(from: $buyer, amount: 6_000)->uuid();
+
+    // Shipping request, later: load it back and pay the seller.
+    Balance::reservation($uuid)->capture(to: $seller);
+
+    expect($seller->balanceAmount())->toBe(6_000)
+        ->and($buyer->balanceReserved())->toBe(0);
+});
+
 it('runs the platform fee recipe', function () {
     $buyer = User::create(['name' => 'buyer']);
     $seller = User::create(['name' => 'seller']);

@@ -5,6 +5,7 @@ namespace Bityukov\BalanceEngine\Support;
 use Bityukov\BalanceEngine\Enums\AccountPurpose;
 use Bityukov\BalanceEngine\Exceptions\CannotReserveSystemAccount;
 use Bityukov\BalanceEngine\Exceptions\CurrencyMismatch;
+use Bityukov\BalanceEngine\Exceptions\HoldAccountNotDirectlyUsable;
 use Bityukov\BalanceEngine\Exceptions\UnresolvableOwner;
 use Bityukov\BalanceEngine\Models\Account;
 use Illuminate\Database\Eloquent\Model;
@@ -18,7 +19,19 @@ class AccountResolver
      */
     public function resolve(Model $target, ?string $currency = null, ?string $name = null): Account
     {
+        if ($currency !== null) {
+            Currency::assertSupported($currency);
+        }
+
         if ($target instanceof Account) {
+            // Hold accounts are reachable only through reserve, capture and
+            // release, none of which come through here for the hold side. Any
+            // other operation touching one would put money on it that no
+            // reservation is holding, and balanceReserved() would report it.
+            if ($target->purpose === AccountPurpose::Hold) {
+                throw HoldAccountNotDirectlyUsable::for($target);
+            }
+
             if ($currency !== null && $target->currency !== $currency) {
                 throw CurrencyMismatch::between($target->currency, $currency);
             }

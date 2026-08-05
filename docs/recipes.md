@@ -22,6 +22,17 @@ $reservation->capture(to: $seller);
 The buyer's available balance drops at reserve time, not at capture time, so the
 same money cannot be spent twice while the order is in flight.
 
+Checkout and shipping are different requests. Store the uuid on the order and
+load the reservation back when the goods go out:
+
+```php
+// Checkout request.
+$uuid = Balance::reserve(from: $buyer, amount: 6_000)->uuid();
+
+// Shipping request, later.
+Balance::reservation($uuid)->capture(to: $seller);
+```
+
 Give the reservation an expiry and schedule the sweeper, so an abandoned checkout
 returns the money on its own:
 

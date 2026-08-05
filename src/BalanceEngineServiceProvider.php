@@ -7,6 +7,12 @@ use Illuminate\Support\ServiceProvider;
 
 class BalanceEngineServiceProvider extends ServiceProvider
 {
+    /**
+     * Set once per process, so a long-running worker warns once rather than on
+     * every job it picks up.
+     */
+    protected static bool $warnedAboutRowLocks = false;
+
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/balance.php', 'balance');
@@ -50,6 +56,12 @@ class BalanceEngineServiceProvider extends ServiceProvider
      */
     protected function warnAboutMissingRowLocks(): void
     {
+        // boot() runs once per request. Without this the warning would be
+        // written on every single one, burying the logs it is meant to appear in.
+        if (static::$warnedAboutRowLocks) {
+            return;
+        }
+
         if (! $this->app->environment('production')) {
             return;
         }
@@ -59,6 +71,8 @@ class BalanceEngineServiceProvider extends ServiceProvider
         if (config("database.connections.{$connection}.driver") !== 'sqlite') {
             return;
         }
+
+        static::$warnedAboutRowLocks = true;
 
         Log::warning(
             '[balance-engine] SQLite does not support row locks. '

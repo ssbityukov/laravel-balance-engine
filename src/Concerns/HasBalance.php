@@ -4,6 +4,7 @@ namespace Bityukov\BalanceEngine\Concerns;
 
 use Bityukov\BalanceEngine\Enums\AccountPurpose;
 use Bityukov\BalanceEngine\Models\Account;
+use Bityukov\BalanceEngine\Support\Currency;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\UniqueConstraintViolationException;
 
@@ -53,6 +54,8 @@ trait HasBalance
      */
     protected function resolveBalanceAccount(string $name, string $currency, AccountPurpose $purpose): Account
     {
+        Currency::assertSupported($currency);
+
         $query = $this->balanceAccounts()
             ->where('name', $name)
             ->where('purpose', $purpose)

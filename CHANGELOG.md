@@ -20,7 +20,11 @@ Initial release.
 - Named accounts and per-currency accounts on a single owner
 - Configurable owner key type: integer, UUID, ULID or string
 - `balance:install`, which detects the owner key type from your auth model
-- `balance:verify`, checking six ledger invariants and exiting 1 on any failure
+- `Balance::reservation($uuid)`, for loading a reservation back in a later request
+- Hold accounts are isolated: money enters only through `reserve()` and leaves
+  only through `capture()` and `release()`
+- Currencies are validated against the configured list before an account is opened
+- `balance:verify`, checking seven ledger invariants and exiting 1 on any failure
 - `balance:rebuild`, recomputing cached balances from the entries
 - `balance:expire-reservations`, returning the remainder of elapsed reservations
 - Events for every operation, all deferred until after commit

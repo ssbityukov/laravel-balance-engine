@@ -15,6 +15,8 @@ class SystemAccounts
      */
     public function external(string $currency): Account
     {
+        Currency::assertSupported($currency);
+
         $model = config('balance.models.account');
 
         return $model::firstOrCreate(

@@ -18,6 +18,7 @@ use Bityukov\BalanceEngine\Exceptions\InvalidAmount;
 use Bityukov\BalanceEngine\Exceptions\ReservationAmountExceeded;
 use Bityukov\BalanceEngine\Exceptions\ReservationClosed;
 use Bityukov\BalanceEngine\Exceptions\ReservationExpired;
+use Bityukov\BalanceEngine\Exceptions\ReservationNotFound;
 use Bityukov\BalanceEngine\Exceptions\TransactionAlreadyReversed;
 use Bityukov\BalanceEngine\Exceptions\TransactionNotReversible;
 use Bityukov\BalanceEngine\Ledger\AccountLocker;
@@ -270,6 +271,30 @@ class BalanceManager
 
             return $reversal;
         });
+    }
+
+    /**
+     * Load a reservation back by uuid.
+     *
+     * Reserving and capturing usually happen in different requests, so an
+     * application keeps the uuid and comes back for the reservation later.
+     * Addressed by uuid rather than by id, like every transaction here.
+     */
+    public function reservation(string $uuid): Reservation
+    {
+        /** @var class-string<Transaction> $model */
+        $model = config('balance.models.transaction');
+
+        $transaction = $model::query()
+            ->where('uuid', $uuid)
+            ->where('type', TransactionType::Reserve)
+            ->first();
+
+        if ($transaction === null) {
+            throw ReservationNotFound::for($uuid);
+        }
+
+        return new Reservation($transaction);
     }
 
     /**

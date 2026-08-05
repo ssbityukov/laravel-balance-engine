@@ -38,6 +38,15 @@ class Reservation
     ) {}
 
     /**
+     * How a reservation is addressed from outside. The reserve transaction's
+     * sequential id is never published.
+     */
+    public function uuid(): string
+    {
+        return $this->transaction->uuid;
+    }
+
+    /**
      * Hand some or all of this reservation to someone. Defaults to the whole
      * remainder. The destination is mandatory on purpose.
      */

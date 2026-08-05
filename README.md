@@ -59,9 +59,10 @@ Ledger verification found 1 problem(s):
 Do not run balance:rebuild before finding out why this happened.
 ```
 
-Six invariants are checked: the global sum is zero, every cached balance matches
-its entries, no reservation is drawn past zero, every capture and release points
-at a reserve, no hold account is negative, and every owner type still resolves.
+Seven invariants are checked: the global sum is zero, every cached balance
+matches its entries, no reservation is drawn past zero, every capture and
+release points at a reserve, nothing but a reservation chain has touched a hold
+account, no hold account is negative, and every owner type still resolves.
 
 ## How this compares
 
@@ -176,6 +177,22 @@ $reservation->isOpen();     // bool
 $reservation->status();     // ReservationStatus
 ```
 
+Reserving and capturing usually happen in different requests. Keep the uuid and
+load the reservation back when you need it:
+
+```php
+$uuid = Balance::reserve(from: $buyer, amount: 6_000)->uuid();
+
+// Later, in another request:
+Balance::reservation($uuid)->capture(to: $seller);
+```
+
+Hold accounts are not ordinary accounts. Money reaches one only through
+`reserve()` and leaves it only through `capture()` and `release()`; depositing,
+withdrawing or transferring against one throws `HoldAccountNotDirectlyUsable`.
+Otherwise `balanceReserved()` would report money that no reservation was
+holding.
+
 The destination of a capture is mandatory. A default recipient would let money
 drift onto a system account unnoticed.
 
@@ -241,6 +258,10 @@ Balance::deposit(to: $user->balanceAccount('bonus'), amount: 2_000);
 
 There is no cross-currency transfer. An exchange is two operations at a rate
 your application decides — see [docs/recipes.md](docs/recipes.md).
+
+Currencies are validated against `balance.currencies`, so a typo throws
+`UnsupportedCurrency` instead of quietly opening an account in a currency that
+does not exist. Records are immutable, so that account would have been permanent.
 
 ## Production notes
 

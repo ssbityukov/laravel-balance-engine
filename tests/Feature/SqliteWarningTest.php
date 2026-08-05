@@ -7,6 +7,7 @@ use Bityukov\BalanceEngine\Tests\TestCase;
 use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use ReflectionProperty;
 
 class SqliteWarningTest extends TestCase
 {
@@ -17,6 +18,11 @@ class SqliteWarningTest extends TestCase
         if (DB::connection()->getDriverName() !== 'sqlite') {
             $this->markTestSkipped('This test is about the sqlite driver specifically.');
         }
+
+        // The provider warns once per process, so without clearing the flag this
+        // test would pass or fail depending on what ran before it.
+        $flag = new ReflectionProperty(BalanceEngineServiceProvider::class, 'warnedAboutRowLocks');
+        $flag->setValue(null, false);
     }
 
     public function test_it_warns_when_running_on_sqlite_in_production(): void

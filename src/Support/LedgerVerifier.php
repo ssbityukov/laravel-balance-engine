@@ -27,6 +27,7 @@ class LedgerVerifier
             $this->checkAccountBalances($accountId),
             $accountId === null ? $this->checkReservationSettlement() : [],
             $accountId === null ? $this->checkReservationParents() : [],
+            $accountId === null ? $this->checkHoldIsolation() : [],
             $this->checkMorphMap($accountId),
             $this->checkHoldAccounts($accountId),
         );
@@ -151,6 +152,44 @@ class LedgerVerifier
                     $row->type,
                     $row->parent_id,
                 ),
+        ))->all();
+    }
+
+    /**
+     * Money only reaches a hold account through a reserve, and only leaves it
+     * through that reserve's children.
+     *
+     * Nothing in the API can break this any more, but a database older than the
+     * guard can, and so can a manual UPDATE. Without the check, money sitting on
+     * a hold account outside any reservation chain is silently counted by
+     * balanceReserved() while no reservation is holding it.
+     *
+     * @return array<int, VerificationProblem>
+     */
+    protected function checkHoldIsolation(): array
+    {
+        $entries = $this->table('entries');
+        $transactions = $this->table('transactions');
+        $accounts = $this->table('accounts');
+
+        $strays = DB::table($entries.' as e')
+            ->join($transactions.' as t', 't.id', '=', 'e.transaction_id')
+            ->join($accounts.' as a', 'a.id', '=', 'e.account_id')
+            ->where('a.purpose', AccountPurpose::Hold->value)
+            ->where('t.type', '<>', TransactionType::Reserve->value)
+            ->whereNull('t.parent_id')
+            ->select('e.id', 'e.account_id', 't.type')
+            ->get();
+
+        return $strays->map(fn ($row) => new VerificationProblem(
+            'hold_isolation',
+            sprintf(
+                'Entry [%d] put money on hold account [%d] through a [%s] transaction, which is '
+                .'not part of any reservation chain.',
+                $row->id,
+                $row->account_id,
+                $row->type,
+            ),
         ))->all();
     }
 
