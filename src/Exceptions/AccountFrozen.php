@@ -4,6 +4,9 @@ namespace Bityukov\BalanceEngine\Exceptions;
 
 use Bityukov\BalanceEngine\Models\Account;
 
+/**
+ * @phpstan-consistent-constructor
+ */
 class AccountFrozen extends BalanceException
 {
     public function __construct(

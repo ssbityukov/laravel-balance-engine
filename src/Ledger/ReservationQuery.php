@@ -63,7 +63,7 @@ class ReservationQuery
     }
 
     /**
-     * @param  \Closure(Builder): mixed  $filter
+     * @param  \Closure(Builder<Transaction>): mixed  $filter
      * @return Collection<int, Reservation>
      */
     protected function reservations(callable $filter): Collection

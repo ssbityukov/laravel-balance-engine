@@ -2,6 +2,9 @@
 
 namespace Bityukov\BalanceEngine\Exceptions;
 
+/**
+ * @phpstan-consistent-constructor
+ */
 class ImmutableRecord extends BalanceException
 {
     public static function for(string $model, string $action): static

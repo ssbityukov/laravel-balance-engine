@@ -8,6 +8,8 @@ use Bityukov\BalanceEngine\Support\VerificationProblem;
  * Never thrown by balance:verify itself, which prints a report and returns an
  * exit code. This exists for applications calling the verifier from their own
  * code that would rather fail loudly.
+ *
+ * @phpstan-consistent-constructor
  */
 class LedgerImbalance extends BalanceException
 {

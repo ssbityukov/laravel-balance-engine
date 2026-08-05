@@ -2,6 +2,9 @@
 
 namespace Bityukov\BalanceEngine\Exceptions;
 
+/**
+ * @phpstan-consistent-constructor
+ */
 class InvalidAmount extends BalanceException
 {
     public static function zero(): static

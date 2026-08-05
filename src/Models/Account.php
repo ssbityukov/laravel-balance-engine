@@ -60,14 +60,23 @@ class Account extends Model
         ];
     }
 
+    /**
+     * @return MorphTo<Model, $this>
+     */
     public function owner(): MorphTo
     {
         return $this->morphTo();
     }
 
+    /**
+     * @return HasMany<Entry, $this>
+     */
     public function entries(): HasMany
     {
-        return $this->hasMany(config('balance.models.entry'), 'account_id');
+        /** @var class-string<Entry> $model */
+        $model = config('balance.models.entry');
+
+        return $this->hasMany($model, 'account_id');
     }
 
     public function isFrozen(): bool
@@ -75,11 +84,17 @@ class Account extends Model
         return $this->frozen_at !== null;
     }
 
+    /**
+     * @param  Builder<static>  $query
+     */
     public function scopeAvailable(Builder $query): void
     {
         $query->where('purpose', AccountPurpose::Available);
     }
 
+    /**
+     * @param  Builder<static>  $query
+     */
     public function scopeHold(Builder $query): void
     {
         $query->where('purpose', AccountPurpose::Hold);

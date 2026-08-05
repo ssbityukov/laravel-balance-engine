@@ -48,7 +48,10 @@ class Entry extends Model
      */
     public function transaction(): BelongsTo
     {
-        return $this->belongsTo(config('balance.models.transaction'), 'transaction_id');
+        /** @var class-string<Transaction> $model */
+        $model = config('balance.models.transaction');
+
+        return $this->belongsTo($model, 'transaction_id');
     }
 
     /**
@@ -56,6 +59,9 @@ class Entry extends Model
      */
     public function account(): BelongsTo
     {
-        return $this->belongsTo(config('balance.models.account'), 'account_id');
+        /** @var class-string<Account> $model */
+        $model = config('balance.models.account');
+
+        return $this->belongsTo($model, 'account_id');
     }
 }

@@ -5,6 +5,9 @@ namespace Bityukov\BalanceEngine\Exceptions;
 use Bityukov\BalanceEngine\Concerns\HasBalance;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @phpstan-consistent-constructor
+ */
 class UnresolvableOwner extends BalanceException
 {
     public static function for(Model $model): static

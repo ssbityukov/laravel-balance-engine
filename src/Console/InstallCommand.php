@@ -5,6 +5,7 @@ namespace Bityukov\BalanceEngine\Console;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\File;
 
 use function Laravel\Prompts\select;
@@ -21,7 +22,7 @@ class InstallCommand extends Command
 
         $keyType = $model !== null
             ? $this->detectOwnerKeyType($model)
-            : select(
+            : (string) select(
                 label: 'Which key type do your account owners use?',
                 options: ['int', 'uuid', 'ulid', 'string'],
                 default: 'int',
@@ -67,7 +68,9 @@ class InstallCommand extends Command
             return 'uuid';
         }
 
-        return (new $model)->getKeyType() === 'int' ? 'int' : 'string';
+        $instance = new $model;
+
+        return $instance instanceof Model && $instance->getKeyType() === 'int' ? 'int' : 'string';
     }
 
     /**
@@ -88,9 +91,12 @@ class InstallCommand extends Command
             return;
         }
 
-        File::put($path, preg_replace(
-            "/'owner_key_type' => '[a-z]+'/",
-            "'owner_key_type' => '{$keyType}'",
+        // Matches the whole value, not just a quoted literal: the shipped config
+        // reads the key type from an environment variable, so a pattern looking
+        // for '...' alone silently matches nothing and the detection is lost.
+        File::put($path, (string) preg_replace(
+            "/'owner_key_type'\s*=>\s*[^,]+,/",
+            "'owner_key_type' => '{$keyType}',",
             File::get($path),
         ));
     }

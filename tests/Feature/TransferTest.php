@@ -96,8 +96,10 @@ it('dispatches Transferred with both accounts', function () {
     Balance::transfer(from: $this->alice, to: $this->bob, amount: 100);
 
     Event::assertDispatched(Transferred::class, function (Transferred $event) {
+        // See DepositTest: owner_id is compared as a string because its column
+        // type follows balance.owner_key_type.
         return $event->amount === 100
-            && $event->from->owner_id === $this->alice->getKey()
-            && $event->to->owner_id === $this->bob->getKey();
+            && (string) $event->from->owner_id === (string) $this->alice->getKey()
+            && (string) $event->to->owner_id === (string) $this->bob->getKey();
     });
 });

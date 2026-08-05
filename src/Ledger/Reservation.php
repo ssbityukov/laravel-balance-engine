@@ -124,7 +124,7 @@ class Reservation
      */
     public function account(): Account
     {
-        return $this->account ??= $this->entries()->where('amount', '<', 0)->firstOrFail()->account;
+        return $this->account ??= $this->accountOfEntry('<');
     }
 
     /**
@@ -132,7 +132,21 @@ class Reservation
      */
     public function holdAccount(): Account
     {
-        return $this->holdAccount ??= $this->entries()->where('amount', '>', 0)->firstOrFail()->account;
+        return $this->holdAccount ??= $this->accountOfEntry('>');
+    }
+
+    /**
+     * The account on one side of the reserve transaction. Resolved by key
+     * rather than through the entry's relation, which is nullable in a way the
+     * ledger never is: an entry cannot exist without its account.
+     */
+    protected function accountOfEntry(string $direction): Account
+    {
+        $entry = $this->entries()->where('amount', $direction, 0)->firstOrFail();
+
+        $model = config('balance.models.account');
+
+        return $model::query()->findOrFail($entry->account_id);
     }
 
     /**

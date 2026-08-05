@@ -122,9 +122,15 @@ class TransactionWriter
      */
     protected function assertSingleCurrency(array $lines): void
     {
-        $expected = $lines[array_key_first($lines)]->account->currency;
+        $expected = null;
 
         foreach ($lines as $line) {
+            // The first line sets the currency the rest must match. Taking it
+            // from the loop avoids an offset lookup that static analysis has to
+            // treat as possibly missing, even though assertBalanced() has
+            // already rejected an empty set.
+            $expected ??= $line->account->currency;
+
             if ($line->account->currency !== $expected) {
                 throw CurrencyMismatch::between($expected, $line->account->currency);
             }
@@ -133,6 +139,7 @@ class TransactionWriter
 
     protected function newTransaction(): Transaction
     {
+        /** @var class-string<Transaction> $class */
         $class = config('balance.models.transaction');
 
         return new $class;
@@ -140,6 +147,7 @@ class TransactionWriter
 
     protected function newEntry(): Model
     {
+        /** @var class-string<Model> $class */
         $class = config('balance.models.entry');
 
         return new $class;

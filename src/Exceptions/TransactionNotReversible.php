@@ -4,6 +4,9 @@ namespace Bityukov\BalanceEngine\Exceptions;
 
 use Bityukov\BalanceEngine\Models\Transaction;
 
+/**
+ * @phpstan-consistent-constructor
+ */
 class TransactionNotReversible extends BalanceException
 {
     public static function for(Transaction $transaction): static

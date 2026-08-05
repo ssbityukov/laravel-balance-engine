@@ -1,7 +1,15 @@
 {
     "name": "ssbityukov/laravel-balance-engine",
     "description": "Double-entry ledger for Laravel: race-safe deposits, withdrawals, transfers and reservations.",
-    "keywords": ["laravel", "ledger", "double-entry", "balance", "wallet", "money", "accounting"],
+    "keywords": [
+        "laravel",
+        "ledger",
+        "double-entry",
+        "balance",
+        "wallet",
+        "money",
+        "accounting"
+    ],
     "license": "MIT",
     "require": {
         "php": "^8.3",
@@ -29,7 +37,9 @@
     },
     "extra": {
         "laravel": {
-            "providers": ["Bityukov\\BalanceEngine\\BalanceEngineServiceProvider"],
+            "providers": [
+                "Bityukov\\BalanceEngine\\BalanceEngineServiceProvider"
+            ],
             "aliases": {
                 "Balance": "Bityukov\\BalanceEngine\\Facades\\Balance"
             }
@@ -42,5 +52,11 @@
         "sort-packages": true
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "scripts": {
+        "test": "vendor/bin/pest",
+        "test:concurrency": "vendor/bin/pest --testsuite=Concurrency",
+        "analyse": "vendor/bin/phpstan analyse",
+        "format": "vendor/bin/pint"
+    }
 }

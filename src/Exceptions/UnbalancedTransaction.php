@@ -2,6 +2,9 @@
 
 namespace Bityukov\BalanceEngine\Exceptions;
 
+/**
+ * @phpstan-consistent-constructor
+ */
 class UnbalancedTransaction extends BalanceException
 {
     public static function empty(): static

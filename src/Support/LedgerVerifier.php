@@ -4,6 +4,9 @@ namespace Bityukov\BalanceEngine\Support;
 
 use Bityukov\BalanceEngine\Enums\AccountPurpose;
 use Bityukov\BalanceEngine\Enums\TransactionType;
+use Bityukov\BalanceEngine\Models\Account;
+use Bityukov\BalanceEngine\Models\Entry;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\DB;
 
@@ -191,14 +194,26 @@ class LedgerVerifier
             ->all();
     }
 
+    /**
+     * @return Builder<Account>
+     */
     protected function accounts()
     {
-        return config('balance.models.account')::query();
+        /** @var class-string<Account> $model */
+        $model = config('balance.models.account');
+
+        return $model::query();
     }
 
+    /**
+     * @return Builder<Entry>
+     */
     protected function entries()
     {
-        return config('balance.models.entry')::query();
+        /** @var class-string<Entry> $model */
+        $model = config('balance.models.entry');
+
+        return $model::query();
     }
 
     protected function table(string $name): string

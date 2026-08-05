@@ -76,7 +76,10 @@ class Transaction extends Model
      */
     public function entries(): HasMany
     {
-        return $this->hasMany(config('balance.models.entry'), 'transaction_id');
+        /** @var class-string<Entry> $model */
+        $model = config('balance.models.entry');
+
+        return $this->hasMany($model, 'transaction_id');
     }
 
     /**
@@ -115,6 +118,9 @@ class Transaction extends Model
         return $this->hasMany(static::class, 'parent_id');
     }
 
+    /**
+     * @return MorphTo<Model, $this>
+     */
     public function reference(): MorphTo
     {
         return $this->morphTo();

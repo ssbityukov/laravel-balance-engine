@@ -49,7 +49,7 @@ return [
     |
     */
 
-    'owner_key_type' => 'int',
+    'owner_key_type' => env('BALANCE_OWNER_KEY_TYPE', 'int'),
 
     'default_account_name' => 'main',
 

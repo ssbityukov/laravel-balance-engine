@@ -4,6 +4,9 @@ namespace Bityukov\BalanceEngine\Exceptions;
 
 use Bityukov\BalanceEngine\Ledger\Reservation;
 
+/**
+ * @phpstan-consistent-constructor
+ */
 class ReservationClosed extends BalanceException
 {
     public static function for(Reservation $reservation): static

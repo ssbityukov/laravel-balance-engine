@@ -87,7 +87,10 @@ it('dispatches Deposited after commit', function () {
     Balance::deposit(to: $this->user, amount: 100);
 
     Event::assertDispatched(Deposited::class, function (Deposited $event) {
+        // Compared as strings: owner_id round-trips through a column whose type
+        // depends on balance.owner_key_type, so an integer key comes back as
+        // "1" whenever that column is not an integer one.
         return $event->amount === 100
-            && $event->account->owner_id === $this->user->getKey();
+            && (string) $event->account->owner_id === (string) $this->user->getKey();
     });
 });

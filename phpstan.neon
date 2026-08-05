@@ -1,0 +1,27 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 8
+    paths:
+        - src
+    treatPhpDocTypesAsCertain: false
+    ignoreErrors:
+        # The plan expected an ignore for staticMethod.dynamicCall here, because
+        # every model class is resolved through config() and config() returns
+        # mixed. It turned out to be closable instead: each read is narrowed with
+        # a @var class-string<Model> annotation at the point of use, which also
+        # fixed the relation generics that had been unresolved since task 3.
+        # Silencing it would have hidden those.
+
+        # Raw SQL fragments are assembled from the configured table prefix, so
+        # they are not literal strings by construction. Every interpolated part
+        # is a table name read from config; no user input reaches these.
+        -
+            message: '#expects Illuminate\\Contracts\\Database\\Query\\Expression\|literal\-string, non\-falsy\-string given#'
+
+        # HasBalance is applied by the host application's models, which are not
+        # in this package. Only src is analysed, so nothing here uses it.
+        -
+            identifier: trait.unused
+            path: src/Concerns/HasBalance.php

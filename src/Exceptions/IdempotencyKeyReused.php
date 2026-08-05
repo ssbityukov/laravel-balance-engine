@@ -2,6 +2,9 @@
 
 namespace Bityukov\BalanceEngine\Exceptions;
 
+/**
+ * @phpstan-consistent-constructor
+ */
 class IdempotencyKeyReused extends BalanceException
 {
     public static function for(string $key): static

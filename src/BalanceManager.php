@@ -476,6 +476,8 @@ class BalanceManager
      * unique-index violation, which covers two concurrent workers racing on the
      * same key. Only the index can settle that race, so the second check is not
      * redundant.
+     *
+     * @param  Closure(): Transaction  $callback
      */
     protected function perform(Closure $callback, ?string $idempotencyKey = null, ?string $fingerprint = null): Transaction
     {
