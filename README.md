@@ -82,6 +82,13 @@ with the developer experience of `bavix/laravel-wallet`. No chart of accounts,
 an application-level API rather than a journal one, and an invariant you can
 verify in CI.
 
+## Requirements
+
+- PHP 8.4 or newer
+- Laravel 13
+- MySQL or PostgreSQL in production — SQLite has no row-level locking, so it
+  cannot serialise concurrent operations. It is fine for local work and tests.
+
 ## Installation
 
 ```bash
