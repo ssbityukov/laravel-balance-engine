@@ -2,23 +2,15 @@
 
 namespace Bityukov\BalanceEngine\Tests\Feature;
 
-use Bityukov\BalanceEngine\Tests\TestCase;
-use Illuminate\Support\Facades\Schema;
-
-class OwnerKeyUlidTest extends TestCase
+class OwnerKeyUlidTest extends OwnerKeyTypeTestCase
 {
-    protected function defineEnvironment($app): void
+    protected function keyType(): string
     {
-        parent::defineEnvironment($app);
-
-        $app['config']->set('balance.owner_key_type', 'ulid');
+        return 'ulid';
     }
 
-    public function test_it_builds_ulid_owner_columns(): void
+    protected function expectedColumnType(): array
     {
-        $this->assertStringContainsString(
-            'char',
-            Schema::getColumnType('balance_accounts', 'owner_id')
-        );
+        return ['char', 26];
     }
 }

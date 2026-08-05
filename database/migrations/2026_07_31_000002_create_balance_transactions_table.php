@@ -16,10 +16,16 @@ return new class extends Migration
             $table->string('idempotency_fingerprint', 64)->nullable();
             $table->nullableMorphs('reference');
             $table->unsignedBigInteger('reverses_id')->nullable()->unique();
+            $table->unsignedBigInteger('parent_id')->nullable();
+            $table->timestamp('expires_at')->nullable();
             $table->json('meta')->nullable();
             $table->timestamp('created_at')->nullable();
 
+            $table->index('parent_id', 'balance_transactions_parent_index');
+            $table->index('expires_at', 'balance_transactions_expiry_index');
+
             $table->foreign('reverses_id')->references('id')->on($this->table());
+            $table->foreign('parent_id')->references('id')->on($this->table());
         });
     }
 

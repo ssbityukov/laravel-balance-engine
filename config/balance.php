@@ -2,7 +2,6 @@
 
 use Bityukov\BalanceEngine\Models\Account;
 use Bityukov\BalanceEngine\Models\Entry;
-use Bityukov\BalanceEngine\Models\Reservation;
 use Bityukov\BalanceEngine\Models\Transaction;
 
 return [
@@ -71,7 +70,6 @@ return [
         'account' => Account::class,
         'transaction' => Transaction::class,
         'entry' => Entry::class,
-        'reservation' => Reservation::class,
     ],
 
 ];

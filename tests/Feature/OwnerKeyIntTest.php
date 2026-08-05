@@ -2,15 +2,15 @@
 
 namespace Bityukov\BalanceEngine\Tests\Feature;
 
-class OwnerKeyUuidTest extends OwnerKeyTypeTestCase
+class OwnerKeyIntTest extends OwnerKeyTypeTestCase
 {
     protected function keyType(): string
     {
-        return 'uuid';
+        return 'int';
     }
 
     protected function expectedColumnType(): array
     {
-        return ['uuid', null];
+        return ['bigInteger', null];
     }
 }
