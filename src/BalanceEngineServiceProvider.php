@@ -33,6 +33,7 @@ class BalanceEngineServiceProvider extends ServiceProvider
 
         $this->commands([
             Console\ExpireReservationsCommand::class,
+            Console\InstallCommand::class,
             Console\RebuildCommand::class,
             Console\VerifyCommand::class,
         ]);
