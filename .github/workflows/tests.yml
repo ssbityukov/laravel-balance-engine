@@ -122,6 +122,20 @@ jobs:
       matrix:
         key_type: [int, uuid, ulid, string]
         driver: [mysql, pgsql]
+        # Connection settings are attached per driver rather than derived with a
+        # ternary. In GitHub Actions `a && b || c` yields c whenever b is falsy,
+        # and an empty password is falsy, so the obvious one-liner hands MySQL
+        # the Postgres password. driver has to stay a real matrix dimension for
+        # these to attach rather than replace each other.
+        include:
+          - driver: mysql
+            port: 3306
+            username: root
+            password: ''
+          - driver: pgsql
+            port: 5432
+            username: postgres
+            password: secret
 
     services:
       mysql:
@@ -153,10 +167,10 @@ jobs:
     env:
       DB_CONNECTION: ${{ matrix.driver }}
       DB_HOST: 127.0.0.1
-      DB_PORT: ${{ matrix.driver == 'mysql' && '3306' || '5432' }}
+      DB_PORT: ${{ matrix.port }}
       DB_DATABASE: balance_engine_test
-      DB_USERNAME: ${{ matrix.driver == 'mysql' && 'root' || 'postgres' }}
-      DB_PASSWORD: ${{ matrix.driver == 'mysql' && '' || 'secret' }}
+      DB_USERNAME: ${{ matrix.username }}
+      DB_PASSWORD: ${{ matrix.password }}
       BALANCE_OWNER_KEY_TYPE: ${{ matrix.key_type }}
 
     steps:
