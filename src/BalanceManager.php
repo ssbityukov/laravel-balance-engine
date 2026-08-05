@@ -4,6 +4,7 @@ namespace Bityukov\BalanceEngine;
 
 use Bityukov\BalanceEngine\Enums\TransactionType;
 use Bityukov\BalanceEngine\Events\Deposited;
+use Bityukov\BalanceEngine\Events\Reserved;
 use Bityukov\BalanceEngine\Events\Transferred;
 use Bityukov\BalanceEngine\Events\Withdrawn;
 use Bityukov\BalanceEngine\Exceptions\CannotTransferToSelf;
@@ -12,6 +13,7 @@ use Bityukov\BalanceEngine\Exceptions\InvalidAmount;
 use Bityukov\BalanceEngine\Ledger\AccountLocker;
 use Bityukov\BalanceEngine\Ledger\IdempotencyGuard;
 use Bityukov\BalanceEngine\Ledger\Line;
+use Bityukov\BalanceEngine\Ledger\Reservation;
 use Bityukov\BalanceEngine\Ledger\TransactionWriter;
 use Bityukov\BalanceEngine\Models\Account;
 use Bityukov\BalanceEngine\Models\Transaction;
@@ -19,6 +21,7 @@ use Bityukov\BalanceEngine\Support\AccountResolver;
 use Bityukov\BalanceEngine\Support\Fingerprint;
 use Bityukov\BalanceEngine\Support\SystemAccounts;
 use Closure;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -133,6 +136,45 @@ class BalanceManager
     }
 
     /**
+     * Put money aside on the owner's hold account. The reservation that comes
+     * back is a read-model over the transaction, not a stored row.
+     *
+     * @param  array<string, mixed>|null  $meta
+     */
+    public function reserve(
+        Model $from,
+        int $amount,
+        ?string $currency = null,
+        ?DateTimeInterface $expiresAt = null,
+        ?Model $reference = null,
+        ?array $meta = null,
+        ?string $idempotencyKey = null,
+    ): Reservation {
+        $this->assertPositive($amount);
+
+        $account = $this->resolver->resolve($from, $currency);
+
+        $transaction = $this->post(
+            type: TransactionType::Reserve,
+            debit: $account,
+            credit: $this->resolver->hold($account),
+            amount: $amount,
+            reference: $reference,
+            meta: $meta,
+            idempotencyKey: $idempotencyKey,
+            expiresAt: $expiresAt,
+            // The event needs the reservation, which needs the transaction that
+            // does not exist yet, so it is built here rather than passed in.
+            event: fn (Transaction $transaction, Account $debit, Account $credit) => new Reserved(
+                new Reservation($transaction),
+                $transaction,
+            ),
+        );
+
+        return new Reservation($transaction);
+    }
+
+    /**
      * The shared body of every two-sided money operation: lock both accounts,
      * write one debit and one credit, announce it.
      *
@@ -152,6 +194,7 @@ class BalanceManager
         ?array $meta,
         ?string $idempotencyKey,
         Closure $event,
+        ?DateTimeInterface $expiresAt = null,
     ): Transaction {
         // Computed before the transaction opens so perform() can compare it
         // against a stored one without doing any of the work first.
@@ -163,7 +206,7 @@ class BalanceManager
         );
 
         return $this->perform(
-            callback: function () use ($type, $debit, $credit, $amount, $reference, $meta, $idempotencyKey, $fingerprint, $event) {
+            callback: function () use ($type, $debit, $credit, $amount, $reference, $meta, $idempotencyKey, $fingerprint, $expiresAt, $event) {
                 $locked = $this->locker->lock([$debit->getKey(), $credit->getKey()]);
 
                 $from = $locked[$debit->getKey()];
@@ -179,6 +222,7 @@ class BalanceManager
                     meta: $meta,
                     idempotencyKey: $idempotencyKey,
                     idempotencyFingerprint: $fingerprint,
+                    expiresAt: $expiresAt,
                 );
 
                 event($event($transaction, $from, $to));

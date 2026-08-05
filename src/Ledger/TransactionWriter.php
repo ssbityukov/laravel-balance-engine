@@ -10,6 +10,7 @@ use Bityukov\BalanceEngine\Exceptions\InvalidAmount;
 use Bityukov\BalanceEngine\Exceptions\UnbalancedTransaction;
 use Bityukov\BalanceEngine\Exceptions\WriterOutsideTransaction;
 use Bityukov\BalanceEngine\Models\Transaction;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -35,6 +36,7 @@ class TransactionWriter
         ?string $idempotencyKey = null,
         ?string $idempotencyFingerprint = null,
         ?Transaction $reverses = null,
+        ?DateTimeInterface $expiresAt = null,
     ): Transaction {
         $this->assertInsideTransaction();
         $this->assertBalanced($lines);
@@ -47,6 +49,7 @@ class TransactionWriter
             'reference_type' => $reference?->getMorphClass(),
             'reference_id' => $reference?->getKey(),
             'reverses_id' => $reverses?->getKey(),
+            'expires_at' => $expiresAt,
             'meta' => $meta,
         ]);
 
