@@ -7,6 +7,7 @@ use Bityukov\BalanceEngine\Enums\TransactionType;
 use Bityukov\BalanceEngine\Models\Account;
 use Bityukov\BalanceEngine\Models\Entry;
 use Bityukov\BalanceEngine\Models\Transaction;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -31,11 +32,67 @@ class ReservationQuery
      */
     public function expired(): Collection
     {
+        return $this->reservations(fn ($query) => $query
+            ->whereNotNull('t.expires_at')
+            ->where('t.expires_at', '<', now()));
+    }
+
+    /**
+     * Reserves still holding money whose expiry has not passed, or that have
+     * none. These are the ones that can still be captured.
+     *
+     * @return Collection<int, Reservation>
+     */
+    public function open(): Collection
+    {
+        return $this->reservations(fn ($query) => $query
+            ->where(fn ($inner) => $inner
+                ->whereNull('t.expires_at')
+                ->orWhere('t.expires_at', '>=', now())));
+    }
+
+    /**
+     * Every reserve still holding money, elapsed or not. Anything here can be
+     * released, since releasing an elapsed reservation is allowed.
+     *
+     * @return Collection<int, Reservation>
+     */
+    public function unsettled(): Collection
+    {
+        return $this->reservations(fn ($query) => $query);
+    }
+
+    /**
+     * @param  \Closure(Builder): mixed  $filter
+     * @return Collection<int, Reservation>
+     */
+    protected function reservations(callable $filter): Collection
+    {
+        $transactions = (new Transaction)->getTable();
+        $remaining = $this->remainingSubquery();
+
+        return Transaction::query()
+            ->from($transactions.' as t')
+            ->where('t.type', TransactionType::Reserve->value)
+            ->whereRaw("({$remaining->toSql()}) > 0", $remaining->getBindings())
+            ->tap($filter)
+            ->orderBy('t.id')
+            ->get()
+            ->map(fn (Transaction $transaction) => new Reservation($transaction));
+    }
+
+    /**
+     * Sum of a reserve's own entry and its children's entries on hold accounts,
+     * correlated to the outer `t` row. Restricting to hold accounts drops the
+     * far side of each entry pair.
+     */
+    protected function remainingSubquery(): \Illuminate\Database\Query\Builder
+    {
         $entries = (new Entry)->getTable();
         $transactions = (new Transaction)->getTable();
         $accounts = (new Account)->getTable();
 
-        $remaining = DB::table($entries.' as e')
+        return DB::table($entries.' as e')
             ->join($transactions.' as c', 'c.id', '=', 'e.transaction_id')
             ->join($accounts.' as a', 'a.id', '=', 'e.account_id')
             ->where('a.purpose', AccountPurpose::Hold->value)
@@ -43,15 +100,5 @@ class ReservationQuery
                 ->whereColumn('c.id', 't.id')
                 ->orWhereColumn('c.parent_id', 't.id'))
             ->selectRaw('coalesce(sum(e.amount), 0)');
-
-        return Transaction::query()
-            ->from($transactions.' as t')
-            ->where('t.type', TransactionType::Reserve->value)
-            ->whereNotNull('t.expires_at')
-            ->where('t.expires_at', '<', now())
-            ->whereRaw("({$remaining->toSql()}) > 0", $remaining->getBindings())
-            ->orderBy('t.id')
-            ->get()
-            ->map(fn (Transaction $transaction) => new Reservation($transaction));
     }
 }
