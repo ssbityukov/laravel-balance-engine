@@ -37,6 +37,7 @@ class TransactionWriter
         ?string $idempotencyFingerprint = null,
         ?Transaction $reverses = null,
         ?DateTimeInterface $expiresAt = null,
+        ?Transaction $parent = null,
     ): Transaction {
         $this->assertInsideTransaction();
         $this->assertBalanced($lines);
@@ -49,6 +50,7 @@ class TransactionWriter
             'reference_type' => $reference?->getMorphClass(),
             'reference_id' => $reference?->getKey(),
             'reverses_id' => $reverses?->getKey(),
+            'parent_id' => $parent?->getKey(),
             'expires_at' => $expiresAt,
             'meta' => $meta,
         ]);

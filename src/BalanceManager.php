@@ -4,12 +4,17 @@ namespace Bityukov\BalanceEngine;
 
 use Bityukov\BalanceEngine\Enums\TransactionType;
 use Bityukov\BalanceEngine\Events\Deposited;
+use Bityukov\BalanceEngine\Events\ReservationCaptured;
+use Bityukov\BalanceEngine\Events\ReservationReleased;
 use Bityukov\BalanceEngine\Events\Reserved;
 use Bityukov\BalanceEngine\Events\Transferred;
 use Bityukov\BalanceEngine\Events\Withdrawn;
 use Bityukov\BalanceEngine\Exceptions\CannotTransferToSelf;
 use Bityukov\BalanceEngine\Exceptions\CurrencyMismatch;
 use Bityukov\BalanceEngine\Exceptions\InvalidAmount;
+use Bityukov\BalanceEngine\Exceptions\ReservationAmountExceeded;
+use Bityukov\BalanceEngine\Exceptions\ReservationClosed;
+use Bityukov\BalanceEngine\Exceptions\ReservationExpired;
 use Bityukov\BalanceEngine\Ledger\AccountLocker;
 use Bityukov\BalanceEngine\Ledger\IdempotencyGuard;
 use Bityukov\BalanceEngine\Ledger\Line;
@@ -175,6 +180,105 @@ class BalanceManager
     }
 
     /**
+     * Take some or all of a reservation and hand it to someone. Defaults to
+     * whatever is still held.
+     *
+     * The destination is mandatory: a default system recipient would let money
+     * quietly drift onto a system account and go unnoticed for years.
+     */
+    public function capture(Reservation $reservation, Model $to, ?int $amount = null): Transaction
+    {
+        $hold = $reservation->holdAccount();
+        $destination = $this->resolver->resolve($to, $hold->currency);
+
+        return $this->drawDown(
+            reservation: $reservation,
+            type: TransactionType::Capture,
+            destination: $destination,
+            amount: $amount,
+            expired: fn () => throw ReservationExpired::for($reservation),
+            event: fn (Transaction $transaction, int $captured) => new ReservationCaptured(
+                $reservation,
+                $transaction,
+                $captured,
+            ),
+        );
+    }
+
+    /**
+     * Give some or all of a reservation back to the account it came from.
+     *
+     * Unlike capture, this is allowed on an expired reservation. Refusing it
+     * would strand the money on the hold account forever and leave
+     * balance:expire-reservations with nothing it could do.
+     */
+    public function release(Reservation $reservation, ?int $amount = null): Transaction
+    {
+        return $this->drawDown(
+            reservation: $reservation,
+            type: TransactionType::Release,
+            destination: $reservation->account(),
+            amount: $amount,
+            expired: null,
+            event: fn (Transaction $transaction, int $released) => new ReservationReleased(
+                $reservation,
+                $transaction,
+                $released,
+            ),
+        );
+    }
+
+    /**
+     * The shared body of capture and release: move money off the hold account
+     * as a child of the reserve transaction.
+     *
+     * remaining() is read twice on purpose. Once here, unlocked, only to size a
+     * null $amount, and once inside the guard with the hold account locked to
+     * decide whether the operation may proceed at all. If a concurrent
+     * draw-down shrank the reservation in between, the guard rejects it.
+     *
+     * @param  Closure():never|null  $expired  what to do when the reservation has elapsed; null allows it
+     * @param  Closure(Transaction, int): object  $event
+     */
+    protected function drawDown(
+        Reservation $reservation,
+        TransactionType $type,
+        Account $destination,
+        ?int $amount,
+        ?Closure $expired,
+        Closure $event,
+    ): Transaction {
+        $amount ??= $reservation->remaining();
+
+        $this->assertPositive($amount);
+
+        return $this->post(
+            type: $type,
+            debit: $reservation->holdAccount(),
+            credit: $destination,
+            amount: $amount,
+            reference: null,
+            meta: null,
+            idempotencyKey: null,
+            parent: $reservation->transaction,
+            guard: function () use ($reservation, $amount, $expired) {
+                if ($reservation->remaining() <= 0) {
+                    throw ReservationClosed::for($reservation);
+                }
+
+                if ($expired !== null && $reservation->isExpired()) {
+                    $expired();
+                }
+
+                if ($amount > $reservation->remaining()) {
+                    throw ReservationAmountExceeded::for($reservation, $amount);
+                }
+            },
+            event: fn (Transaction $transaction) => $event($transaction, $amount),
+        );
+    }
+
+    /**
      * The shared body of every two-sided money operation: lock both accounts,
      * write one debit and one credit, announce it.
      *
@@ -195,6 +299,8 @@ class BalanceManager
         ?string $idempotencyKey,
         Closure $event,
         ?DateTimeInterface $expiresAt = null,
+        ?Transaction $parent = null,
+        ?Closure $guard = null,
     ): Transaction {
         // Computed before the transaction opens so perform() can compare it
         // against a stored one without doing any of the work first.
@@ -206,11 +312,18 @@ class BalanceManager
         );
 
         return $this->perform(
-            callback: function () use ($type, $debit, $credit, $amount, $reference, $meta, $idempotencyKey, $fingerprint, $expiresAt, $event) {
+            callback: function () use ($type, $debit, $credit, $amount, $reference, $meta, $idempotencyKey, $fingerprint, $expiresAt, $parent, $guard, $event) {
                 $locked = $this->locker->lock([$debit->getKey(), $credit->getKey()]);
 
                 $from = $locked[$debit->getKey()];
                 $to = $locked[$credit->getKey()];
+
+                // Anything derived from the ledger has to be checked here, with
+                // the rows already locked. Checking before perform() would let
+                // two concurrent callers read the same state and both proceed.
+                if ($guard !== null) {
+                    $guard($from, $to);
+                }
 
                 $transaction = $this->writer->write(
                     type: $type,
@@ -223,6 +336,7 @@ class BalanceManager
                     idempotencyKey: $idempotencyKey,
                     idempotencyFingerprint: $fingerprint,
                     expiresAt: $expiresAt,
+                    parent: $parent,
                 );
 
                 event($event($transaction, $from, $to));

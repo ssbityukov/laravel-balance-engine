@@ -2,12 +2,14 @@
 
 namespace Bityukov\BalanceEngine\Ledger;
 
+use Bityukov\BalanceEngine\BalanceManager;
 use Bityukov\BalanceEngine\Enums\ReservationStatus;
 use Bityukov\BalanceEngine\Enums\TransactionType;
 use Bityukov\BalanceEngine\Models\Account;
 use Bityukov\BalanceEngine\Models\Entry;
 use Bityukov\BalanceEngine\Models\Transaction;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -34,6 +36,24 @@ class Reservation
     public function __construct(
         public readonly Transaction $transaction,
     ) {}
+
+    /**
+     * Hand some or all of this reservation to someone. Defaults to the whole
+     * remainder. The destination is mandatory on purpose.
+     */
+    public function capture(Model $to, ?int $amount = null): Transaction
+    {
+        return app(BalanceManager::class)->capture($this, $to, $amount);
+    }
+
+    /**
+     * Give some or all of this reservation back. Defaults to the whole
+     * remainder.
+     */
+    public function release(?int $amount = null): Transaction
+    {
+        return app(BalanceManager::class)->release($this, $amount);
+    }
 
     /**
      * What was originally put on hold: the credit side of the reserve
