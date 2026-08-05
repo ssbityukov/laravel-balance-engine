@@ -63,8 +63,26 @@ it('writes the detected key type into the published config', function () {
 
     $detected = app(InstallCommand::class)->detectOwnerKeyType(User::class);
 
-    expect(File::get(config_path('balance.php')))
-        ->toContain("'owner_key_type' => '{$detected}'");
+    // Evaluated, not string-matched. A substring assertion passed happily on a
+    // config the replacement had corrupted into
+    // "'owner_key_type' => 'int', 'int')," — which contains the expected text
+    // and does not parse.
+    $published = require config_path('balance.php');
+
+    expect($published)->toBeArray()
+        ->and($published['owner_key_type'])->toBe($detected);
+});
+
+it('leaves the published config as valid php', function () {
+    File::delete(config_path('balance.php'));
+
+    $this->artisan('balance:install')->assertExitCode(0);
+
+    // token_get_all with TOKEN_PARSE raises ParseError on invalid syntax, which
+    // beats shelling out to php -l and having to quote a binary path.
+    $parse = fn () => token_get_all(File::get(config_path('balance.php')), TOKEN_PARSE);
+
+    expect($parse)->not->toThrow(ParseError::class);
 });
 
 it('publishes migrations', function () {

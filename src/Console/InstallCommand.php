@@ -91,12 +91,13 @@ class InstallCommand extends Command
             return;
         }
 
-        // Matches the whole value, not just a quoted literal: the shipped config
-        // reads the key type from an environment variable, so a pattern looking
-        // for '...' alone silently matches nothing and the detection is lost.
+        // Replaces the whole line. The value is env('BALANCE_OWNER_KEY_TYPE',
+        // 'int'), which contains a comma of its own, so anything that stops at
+        // the first comma leaves the tail of the env() call behind and the
+        // published config no longer parses.
         File::put($path, (string) preg_replace(
-            "/'owner_key_type'\s*=>\s*[^,]+,/",
-            "'owner_key_type' => '{$keyType}',",
+            "/^(\s*)'owner_key_type'\s*=>.*$/m",
+            "$1'owner_key_type' => '{$keyType}',",
             File::get($path),
         ));
     }
