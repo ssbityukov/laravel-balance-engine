@@ -32,6 +32,8 @@ class BalanceEngineServiceProvider extends ServiceProvider
         ], 'balance-migrations');
 
         $this->commands([
+            Console\ExpireReservationsCommand::class,
+            Console\RebuildCommand::class,
             Console\VerifyCommand::class,
         ]);
     }

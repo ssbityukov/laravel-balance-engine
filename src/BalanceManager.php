@@ -322,6 +322,25 @@ class BalanceManager
     }
 
     /**
+     * Hand back whatever an elapsed reservation is still holding.
+     *
+     * It sets no status, because there is none to set. Once the remainder is
+     * returned the reservation derives as released, or as captured if part of
+     * it was taken earlier. "Expired" only describes a reservation that has
+     * elapsed while still holding money, so it stops being true precisely
+     * because this ran. The fact that it elapsed stays recoverable from
+     * expires_at and the release child.
+     */
+    public function expireReservation(Reservation $reservation): void
+    {
+        $remaining = $reservation->remaining();
+
+        if ($remaining > 0) {
+            $this->release($reservation, $remaining);
+        }
+    }
+
+    /**
      * The shared body of capture and release: move money off the hold account
      * as a child of the reserve transaction.
      *
