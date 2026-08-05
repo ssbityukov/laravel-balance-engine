@@ -18,7 +18,10 @@ trait HasBalance
      */
     public function balanceAccounts(): MorphMany
     {
-        return $this->morphMany(config('balance.models.account'), 'owner');
+        /** @var class-string<Account> $model */
+        $model = config('balance.models.account');
+
+        return $this->morphMany($model, 'owner');
     }
 
     public function balanceAccount(?string $name = null, ?string $currency = null): Account
